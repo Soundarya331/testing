@@ -1,100 +1,111 @@
-<%@ page contentType="text/html;charset=UTF-8" language="java"%>
+<%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 <%@ taglib prefix="s" uri="/struts-tags" %>
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Login - InsurancePMS</title>
-<link
-	href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
-	rel="stylesheet" crossorigin="anonymous">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 </head>
-<body class="d-flex align-items-center" style="min-height: 100vh;">
-	<div class="container">
-		<div class="row justify-content-center">
-			<div class="col-md-4">
-				<div class="card">
-					<div class="card-body">
-						<h4 class="card-title">Login</h4>
-						<form id="login-form">
-							<div class="mb-3">
-								<label class="form-label">Email</label> <input type="email"
-									id="email" name="email" class="form-control" required />
-							</div>
-							<div class="mb-3">
-								<label class="form-label">Password</label> <input
-									type="password" id="password" name="password"
-									class="form-control" required />
-							</div>
-							<button class="btn btn-primary w-100" type="button"
-								onclick="doLogin()">Login</button>
-						</form>
-						<div id="login-message" class="mt-3">
-							<s:if test="hasActionErrors()">
-								<div class="alert alert-danger">
-									<s:actionerror />
-								</div>
-							</s:if>
-						</div>
-						<div><a href="register.jsp">Register</a></div>
-					</div>
-				</div>
-			</div>
-		</div>
-	</div>
+<body>
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-4">
+            <h2 class="text-center mb-4">Login Form</h2>
 
-	<script
-		src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
-		crossorigin="anonymous"></script>
-	<script>
-        const ctx = "${pageContext.request.contextPath}";
+            <div id="alertMsg" class="alert d-none"></div>
 
-        function doLogin() {
-            const email    = document.getElementById("email").value;
-            const password = document.getElementById("password").value;
+            <div class="mb-3">
+                <label class="form-label">Email</label>
+                <input type="text" id="email" class="form-control" placeholder="Enter email"/>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Password</label>
+                <input type="password" id="password" class="form-control" placeholder="Enter password"/>
+            </div>
+            <button type="button" id="btnLogin" class="btn btn-primary w-100">
+                <span id="btnText">Login</span>
+                <span id="btnSpinner" class="spinner-border spinner-border-sm d-none ms-2"></span>
+            </button>
+        </div>
+    </div>
+</div>
 
-            if (!email || !password) {
-                document.getElementById("login-message").innerHTML =
-                    `<div class='alert alert-danger'>Email and password are required.</div>`;
-                return;
-            }
+<script>
+$(function () {
 
-            fetch(ctx + "/login.action", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded"
-                },
-                body: "email=" + encodeURIComponent(email) +
-                      "&password=" + encodeURIComponent(password)
-            })
-            .then(response => response.json())
-            .then(data => {
-    const messageDiv = document.getElementById("login-message");
-    if (data.actionErrors && data.actionErrors.length > 0) {
-        messageDiv.innerHTML =
-            `<div class='alert alert-danger'>${data.actionErrors[0]}</div>`;
-    } else if (data.role === "AGENT") {
-        messageDiv.innerHTML =
-            `<div class='alert alert-success'>Welcome Admin! Redirecting...</div>`;
-        setTimeout(() => window.location.href =
-            ctx + "/agentDashboard.action", 1500);
-    } else if (data.role === "CUSTOMER") {
-        messageDiv.innerHTML =
-            `<div class='alert alert-success'>Welcome! Redirecting...</div>`;
-        setTimeout(() => window.location.href =
-            ctx + "/customerDashboard.action", 1500);
-    } else {
-        messageDiv.innerHTML =
-            `<div class='alert alert-danger'>Invalid email or password.</div>`;
-    }
-})
-.catch(error => {
-    console.error("Error:", error);
-    document.getElementById("login-message").innerHTML =
-        `<div class='alert alert-danger'>An error occurred: ${error.message}</div>`;
-});
+    $('#btnLogin').on('click', function () {
+        var email    = $('#email').val().trim();
+        var password = $('#password').val().trim();
+
+        if (!email || !password) {
+            showAlert('danger', 'Please enter both email and password.');
+            return;
         }
-    </script>
+
+        $('#btnText').text('Signing in...');
+        $('#btnSpinner').removeClass('d-none');
+        $('#btnLogin').prop('disabled', true);
+        $('#alertMsg').addClass('d-none');
+
+        $.ajax({
+            url:      'loginAction',   /* removed .action suffix */
+            type:     'POST',
+            data: {
+                email:    email,
+                password: password
+            },
+            success: function (response) {
+                resetBtn();
+
+                /* Struts may return a string or object — handle both */
+                var res = (typeof response === 'string') ? JSON.parse(response) : response;
+
+                if (res.status === 'success') {
+                    showAlert('success',
+                        'Login successful! Role: <strong>' + res.role + '</strong>. Redirecting...');
+                    setTimeout(function () {
+                        window.location.href = res.redirect + '.action';
+                    }, 1000);
+                } else {
+                    showAlert('danger', res.message || 'Invalid credentials. Please try again.');
+                }
+            },
+            error: function (xhr) {
+                resetBtn();
+                /*
+                 * Try to read JSON from error response body.
+                 * Struts sends JSON even for ERROR result if json-plugin is configured.
+                 */
+                try {
+                    var res = JSON.parse(xhr.responseText);
+                    showAlert('danger', res.message || 'Invalid credentials. Please try again.');
+                } catch (e) {
+                    /* Last fallback — show HTTP status, not generic message */
+                    showAlert('danger', 'Login failed (HTTP ' + xhr.status + '). Check server logs.');
+                }
+            }
+        });
+    });
+
+    $('#email, #password').on('keydown', function (e) {
+        if (e.key === 'Enter') $('#btnLogin').trigger('click');
+    });
+
+    function showAlert(type, msg) {
+        $('#alertMsg')
+            .removeClass('d-none alert-success alert-danger')
+            .addClass('alert-' + type)
+            .html(msg);
+    }
+
+    function resetBtn() {
+        $('#btnText').text('Login');
+        $('#btnSpinner').addClass('d-none');
+        $('#btnLogin').prop('disabled', false);
+    }
+
+});
+</script>
 </body>
 </html>

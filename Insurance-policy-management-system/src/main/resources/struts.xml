@@ -1,92 +1,118 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE struts PUBLIC
-    "-//Apache Software Foundation//DTD Struts Configuration 2.5//EN"
-    "https://struts.apache.org/dtds/struts-2.5.dtd">
-
+<!DOCTYPE struts PUBLIC "-//Apache Software Foundation//DTD Struts Configuration 2.5//EN" "http://struts.apache.org/dtds/struts-2.5.dtd">
 <struts>
-    <constant name="struts.objectFactory" value="spring"/>
-    <constant name="struts.devMode"       value="true"/>
+    <constant name="struts.enable.DynamicMethodInvocation" value="false" />
+    <constant name="struts.devMode" value="true" />
+    <constant name="struts.objectFactory" value="spring" />
 
-    <package name="default" namespace="/" extends="struts-default,json-default">
+    <package name="default" namespace="/" extends="struts-default, json-default">
 
         <interceptors>
-            <interceptor name="authInterceptor"
-                class="com.policymanagement.interceptor.AuthInterceptor"/>
-            <interceptor-stack name="authStack">
+            <interceptor name="authInterceptor" class="com.policymanagement.interceptor.AuthInterceptor"/>
+            <interceptor-stack name="agentStack">
                 <interceptor-ref name="defaultStack"/>
-                <interceptor-ref name="authInterceptor"/>
+                <interceptor-ref name="authInterceptor">
+                    <param name="requiredRole">AGENT</param>
+                </interceptor-ref>
+            </interceptor-stack>
+            <interceptor-stack name="customerStack">
+                <interceptor-ref name="defaultStack"/>
+                <interceptor-ref name="authInterceptor">
+                    <param name="requiredRole">CUSTOMER</param>
+                </interceptor-ref>
             </interceptor-stack>
         </interceptors>
 
-        <global-results>
-            <result name="unauthorized">/error.jsp</result>
-        </global-results>
-
-        <!-- PUBLIC -->
-      <action name="login" class="loginAction" method="login">
-        <result name="agent">/agentDashboard.jsp</result>
-        <result name="customer">/customerDashboard.jsp</result>
-        <result name="error">/login.jsp</result>
-    </action>
-
-        <action name="logout" class="loginAction" method="logout">
-            <result name="success" type="redirect">/login.jsp</result>
-            <interceptor-ref name="defaultStack"/>
+        <!-- LOGIN -->
+        <action name="loginAction" class="loginAction" method="login">
+            <result type="json" name="agent"><param name="root">jsonResponse</param></result>
+            <result type="json" name="customer"><param name="root">jsonResponse</param></result>
+            <result type="json" name="error"><param name="root">jsonResponse</param></result>
+            <result type="json" name="input"><param name="root">jsonResponse</param></result>
         </action>
 
-        <action name="register" class="registrationAction" method="register">
+        <!-- LOGOUT -->
+        <action name="logoutAction" class="loginAction" method="logout">
+            <result name="success" type="redirect">/login.jsp</result>
+        </action>
+
+        <!-- REGISTRATION -->
+        <action name="registerAction" class="registrationAction" method="register">
             <result name="success">/register-success.jsp</result>
             <result name="input">/register.jsp</result>
             <result name="error">/register.jsp</result>
-            <interceptor-ref name="defaultStack"/>
         </action>
 
-        <!-- AGENT -->
+        <!-- AGENT DASHBOARD -->
         <action name="agentDashboard" class="policyAction" method="listPolicies">
+            <interceptor-ref name="agentStack"/>
             <result name="success">/agentDashboard.jsp</result>
-            <interceptor-ref name="authStack"/>
+            <result name="unauthorized" type="redirect">/login.jsp</result>
         </action>
 
+        <!-- POLICY FORM PAGE -->
+        <action name="policyForm" class="policyAction" method="execute">
+            <interceptor-ref name="agentStack"/>
+            <result name="success">/policyForm.jsp</result>
+            <result name="unauthorized" type="redirect">/login.jsp</result>
+        </action>
+
+        <!-- ADD POLICY -->
         <action name="addPolicy" class="policyAction" method="addPolicy">
-            <result name="success" type="redirect">/agentDashboard.action</result>
+            <interceptor-ref name="agentStack"/>
+            <result name="success" type="redirect">agentDashboard</result>
             <result name="input">/policyForm.jsp</result>
             <result name="error">/policyForm.jsp</result>
-            <interceptor-ref name="authStack"/>
+            <result name="unauthorized" type="redirect">/login.jsp</result>
         </action>
 
-        <action name="listAllPolicies" class="policyAction" method="listPolicies">
-            <result name="success">/policies.jsp</result>
-            <interceptor-ref name="authStack"/>
-        </action>
-
+        <!-- DELETE POLICY - JSON for AJAX -->
         <action name="deletePolicy" class="policyAction" method="deletePolicy">
-            <result name="success" type="redirect">/agentDashboard.action</result>
-            <result name="error">/agentDashboard.jsp</result>
-            <interceptor-ref name="authStack"/>
+            <interceptor-ref name="agentStack"/>
+            <result type="json" name="success">
+                <param name="root">jsonResponse</param>
+            </result>
+            <result type="json" name="error">
+                <param name="root">jsonResponse</param>
+            </result>
+            <result name="unauthorized" type="redirect">/login.jsp</result>
         </action>
 
-        <!-- CUSTOMER -->
+        <!-- LIST POLICIES - forwards to policies.jsp -->
+        <action name="listPolicies" class="policyAction" method="listPolicies">
+            <interceptor-ref name="agentStack"/>
+            <result name="success">/policies.jsp</result>
+            <result name="unauthorized" type="redirect">/login.jsp</result>
+        </action>
+
+        <!-- GET POLICIES JSON - called by jQuery AJAX inside policies.jsp -->
+        <action name="getPoliciesJson" class="policyAction" method="listPolicies">
+            <interceptor-ref name="agentStack"/>
+            <result type="json" name="success">
+                <param name="root">jsonResponse</param>
+            </result>
+            <result name="unauthorized" type="redirect">/login.jsp</result>
+        </action>
+
+        <!-- CUSTOMER DASHBOARD -->
         <action name="customerDashboard" class="policyAction" method="listPolicies">
+            <interceptor-ref name="customerStack"/>
             <result name="success">/customerDashboard.jsp</result>
-            <interceptor-ref name="authStack"/>
+            <result name="unauthorized" type="redirect">/login.jsp</result>
         </action>
 
+        <!-- BROWSE POLICIES -->
         <action name="browsePolicies" class="policyAction" method="listPolicies">
+            <interceptor-ref name="customerStack"/>
             <result name="success">/browsePolicies.jsp</result>
-            <interceptor-ref name="authStack"/>
+            <result name="unauthorized" type="redirect">/login.jsp</result>
         </action>
 
-        <action name="purchasePolicy" class="customerPolicyAction" method="purchasePolicy">
-            <result name="success" type="redirect">/myPolicies.action</result>
-            <result name="error">/browsePolicies.jsp</result>
-            <result name="input">/browsePolicies.jsp</result>
-            <interceptor-ref name="authStack"/>
-        </action>
-
-        <action name="myPolicies" class="customerPolicyAction" method="viewMyPolicies">
+        <!-- MY POLICIES -->
+        <action name="myPolicies" class="policyAction" method="listPolicies">
+            <interceptor-ref name="customerStack"/>
             <result name="success">/myPolicies.jsp</result>
-            <result name="error">/error.jsp</result>
-            <interceptor-ref name="authStack"/>
+            <result name="unauthorized" type="redirect">/login.jsp</result>
         </action>
 
     </package>

@@ -1,6 +1,11 @@
 package com.policymanagement.action;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
+import org.apache.struts2.interceptor.validation.SkipValidation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import com.opensymphony.xwork2.ActionSupport;
@@ -18,15 +23,11 @@ public class PolicyAction extends ActionSupport implements ModelDriven<Policy> {
 	@Autowired
 	private PolicyService policyService;
 
+	// Changed to Map<String, Object> to support List<Policy> as value
+	private Map<String, Object> jsonResponse = new HashMap<>();
+
 	@Override
 	public void validate() {
-		System.out.println("=== validate called ===");
-		System.out.println("Policy Name: " + policy.getPolicyName());
-		System.out.println("Premium: " + policy.getPremiumAmount());
-		System.out.println("Coverage: " + policy.getCoverageAmount());
-		System.out.println("Duration: " + policy.getDurationMonths());
-		System.out.println("Type: " + policy.getPolicyType());
-
 		if (policy.getPolicyName() == null || policy.getPolicyName().trim().isEmpty()) {
 			addFieldError("policyName", "Policy name is required.");
 		}
@@ -45,9 +46,12 @@ public class PolicyAction extends ActionSupport implements ModelDriven<Policy> {
 			addFieldError("policyType", "Policy type is required.");
 		}
 	}
-
+	@SkipValidation
+	@Override
+	public String execute() {
+	    return SUCCESS;
+	}
 	public String addPolicy() {
-		System.out.println("=== addPolicy called ===");
 		try {
 			policyService.addPolicy(policy);
 			return SUCCESS;
@@ -57,17 +61,30 @@ public class PolicyAction extends ActionSupport implements ModelDriven<Policy> {
 		}
 	}
 
+	@SkipValidation
 	public String listPolicies() {
 		policyList = policyService.getAllPolicies();
+		if (policyList == null || policyList.isEmpty()) {
+			policyList = new ArrayList<>();
+			jsonResponse.put("status", "empty");
+			jsonResponse.put("message", "No policies available. Click Create Policy to add one.");
+		} else {
+			jsonResponse.put("status", "success");
+		}
+		jsonResponse.put("policyList", policyList);
 		return SUCCESS;
 	}
 
+	@SkipValidation
 	public String deletePolicy() {
 		try {
 			policyService.deletePolicy(policyId);
+			jsonResponse.put("status", "success");
+			jsonResponse.put("message", "Policy deleted successfully.");
 			return SUCCESS;
 		} catch (IllegalArgumentException e) {
-			addActionError(e.getMessage());
+			jsonResponse.put("status", "error");
+			jsonResponse.put("message", e.getMessage());
 			return ERROR;
 		}
 	}
@@ -99,5 +116,9 @@ public class PolicyAction extends ActionSupport implements ModelDriven<Policy> {
 
 	public void setPolicyId(int id) {
 		this.policyId = id;
+	}
+
+	public Map<String, Object> getJsonResponse() {
+		return jsonResponse;
 	}
 }
