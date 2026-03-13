@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<hibernate-configuration>
+    <session-factory>
+
+        <!-- DB Connection -->
+        <property name="hibernate.connection.driver_class">
+            org.postgresql.Driver
+        </property>
+
+        <property name="hibernate.connection.url">
+            jdbc:postgresql://localhost:5432/policy-db
+        </property>
+
+        <property name="hibernate.connection.username">postgres</property>
+        <property name="hibernate.connection.password">mypassword123</property>
+
+        <!-- Dialect -->
+        <property name="hibernate.dialect">
+            org.hibernate.dialect.PostgreSQLDialect
+        </property>
+
+        <!-- Automatically Create Tables -->
+        <property name="hibernate.hbm2ddl.auto">update</property>
+        <property name="hibernate.show_sql">true</property>
+        
+
+        <mapping class="com.policymanagement.entity.Customer"/>
+        <mapping class="com.policymanagement.entity.Policy"/>
+        <mapping class="com.policymanagement.entity.CustomerPolicy"/>
+
+    </session-factory>
+</hibernate-configuration>
